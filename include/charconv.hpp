@@ -47,9 +47,19 @@ namespace std {
 		template<int (*IsDigit)(int), int(*DigitToNumber)(char), int Base, int ExpChar, typename Num, int ExponentBase = Base, enable_if_t<is_floating_point<Num>::value, int> = 0>
 		constexpr from_chars_result __from_chars_helper(const char *first, const char *last, Num& value, chars_format fmt) {
 
-			// Check sign
+			// Skip white space
 			const char *curr = first;
-			bool negative = *first == '-';
+			while (isspace(*curr) && curr != last) {
+				++curr;
+			}
+
+			// Return invalid_argument if string is empty or all white space
+			if (curr == last) {
+				return {first, errc::invalid_argument};
+			}
+
+			// Check sign
+			bool negative = *curr == '-';
 			if (negative) {
 				++curr;
 			}
@@ -148,7 +158,7 @@ namespace std {
 					}
 				}
 				nextChar = *curr;
-				if (!IsDigit(nextChar)) {
+				if (!isdigit(nextChar)) {
 					if (!exponentRequired) {
 						return __exit_from_chars(significandEnd, result, negative, &value);
 					}
@@ -156,7 +166,7 @@ namespace std {
 						return {first, errc::invalid_argument};
 					}
 				}
-				long long exponent = DigitToNumber(nextChar);
+				long long exponent = nextChar - '0';
 				while (++curr != last && isdigit(nextChar = *curr)) {
 					exponent = exponent*10 + nextChar - '0';
 				}
@@ -190,17 +200,6 @@ namespace std {
 		// templated implementation of from_chars for floating point
 		template<typename Num, enable_if_t<is_floating_point<Num>::value, int> = 0>
 		constexpr from_chars_result __from_chars(const char *first, const char *last, Num& value, chars_format fmt) {
-
-			// Skip white space
-			while (isspace(*first) && first != last) {
-				++first;
-			}
-
-			// Return invalid_argument if string is empty or all white space
-			if (first == last) {
-				return {first, errc::invalid_argument};
-			}
-
 			// Call __from_chars_helper templated for the proper base
 			if (int(fmt) & int(chars_format::hex)) {
 				return __from_chars_helper<&isxdigit, &__hex_to_number, 16, 'P', Num, 2>(
